@@ -31,7 +31,7 @@ namespace GogsActiveDirectorySync
         /// <summary>
         /// The container to use as the root of the Active Directory context. 
         /// </summary>
-        public string ActiveDirectoryGroupContainer { get; set; }
+        public string DefaultActiveDirectoryGroupContainer { get; set; }
 
         /// <summary>
         /// An (optional) Active Directory group that's required for all users included in the sync.
@@ -146,7 +146,8 @@ namespace GogsActiveDirectorySync
                 MinimumTimeOfDay = minimumTimeOfDay;
             }
 
-            ActiveDirectoryGroupContainer = ConfigurationManager.AppSettings["ActiveDirectoryGroupContainer"];
+            DefaultActiveDirectoryGroupContainer = ConfigurationManager.AppSettings["DefaultActiveDirectoryGroupContainer"]
+                ?? ConfigurationManager.AppSettings["ActiveDirectoryGroupContainer"];
             RequiredActiveDirectoryGroupName = ConfigurationManager.AppSettings["RequiredActiveDirectoryGroupName"];
 
             var gogsApiUrl = ConfigurationManager.AppSettings["GogsApiUrl"];
@@ -209,17 +210,19 @@ namespace GogsActiveDirectorySync
 
     public class GroupMapping
     {
-        public GroupMapping(string activeDirectoryName, string gogsOrgName, string gogsTeamName = null)
+        public GroupMapping(string activeDirectoryGroupName, string gogsOrgName, string gogsTeamName = null, string activeDirectoryContainerName = null)
         {
-            if (activeDirectoryName == null) throw new ArgumentNullException(nameof(activeDirectoryName));
+            if (activeDirectoryGroupName == null) throw new ArgumentNullException(nameof(activeDirectoryGroupName));
             if (gogsOrgName == null) throw new ArgumentNullException(nameof(gogsOrgName));
 
-            this.ActiveDirectoryName = activeDirectoryName;
+            this.ActiveDirectoryGroupName = activeDirectoryGroupName;
+            this.ActiveDirectoryContainerName = activeDirectoryContainerName;
             this.GogsOrgName = gogsOrgName;
             this.GogsTeamName = gogsTeamName;
         }
 
-        public string ActiveDirectoryName { get; }
+        public string ActiveDirectoryGroupName { get; }
+        public string ActiveDirectoryContainerName { get; }
         public string GogsOrgName { get; }
         public string GogsTeamName { get; }
     }
@@ -239,12 +242,19 @@ namespace GogsActiveDirectorySync
             var mappingElements = doc.Root.Elements("mapping");
             foreach (var mappingElement in mappingElements)
             {
-                var activeDirectoryName = mappingElement.Attribute("activeDirectoryName")?.Value;
-                var gogsOrganizationName = mappingElement.Attribute("gogsOrgName")?.Value
+                var activeDirectoryGroupName = mappingElement.Attribute("activeDirectoryGroupName")?.Value
+                    ?? mappingElement.Attribute("activeDirectoryName")?.Value;
+                var activeDirectoryContainerName = mappingElement.Attribute("activeDirectoryContainerName")?.Value;
+                var gogsOrgName = mappingElement.Attribute("gogsOrgName")?.Value
                     ?? mappingElement.Attribute("gogsOrganizationName")?.Value
                     ?? mappingElement.Attribute("gogsName")?.Value;
                 var gogsTeamName = mappingElement.Attribute("gogsTeamName")?.Value;
-                yield return new GroupMapping(activeDirectoryName, gogsOrganizationName, gogsTeamName: gogsTeamName);
+                yield return new GroupMapping(
+                    activeDirectoryGroupName: activeDirectoryGroupName, 
+                    gogsOrgName: gogsOrgName, 
+                    gogsTeamName: gogsTeamName,
+                    activeDirectoryContainerName: activeDirectoryContainerName
+                );
             }
         }
     }

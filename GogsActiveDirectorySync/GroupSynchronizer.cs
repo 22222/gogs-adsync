@@ -22,7 +22,7 @@ namespace GogsActiveDirectorySync
             this.appConfiguration = appConfiguration;
 
             this.gogsClient = CreateGogsClient(appConfiguration);
-            this.activeDirectoryClient = new ActiveDirectoryClient(appConfiguration.ActiveDirectoryGroupContainer);
+            this.activeDirectoryClient = new ActiveDirectoryClient();
             this.excludedUsernames = new SortedSet<string>(appConfiguration.ExcludedUsernames?.Select(x => x.ToLower()) ?? Array.Empty<string>());
         }
 
@@ -54,11 +54,17 @@ namespace GogsActiveDirectorySync
                 var gogsTeam = await GetOrCreateGogsOrgAndTeam(groupMapping, progress, cancellationToken);
                 if (gogsTeam == null)
                 {
-                    progress?.Report($"No Gogs team found for AD group \"{groupMapping.ActiveDirectoryName}\"");
+                    progress?.Report($"Gogs org \"{groupMapping.GogsOrgName}\" sync team not found (for AD group \"{groupMapping.ActiveDirectoryGroupName}\")");
                     continue;
                 }
 
-                var adUsers = activeDirectoryClient.GetUsers(groupMapping.ActiveDirectoryName).ToArray();
+                var adContainer = groupMapping.ActiveDirectoryContainerName ?? appConfiguration.DefaultActiveDirectoryGroupContainer;
+                if (string.IsNullOrWhiteSpace(adContainer))
+                {
+                    adContainer = null;
+                }
+
+                var adUsers = activeDirectoryClient.GetUsers(groupName: groupMapping.ActiveDirectoryGroupName, container: adContainer).ToArray();
                 var gogsUsers = new List<GogsKit.UserResult>(adUsers.Length);
                 foreach (var adUser in adUsers)
                 {
@@ -117,7 +123,7 @@ namespace GogsActiveDirectorySync
 
         private async Task<GogsKit.TeamResult> GetOrCreateGogsOrgAndTeam(GroupMapping groupMapping, IProgress<string> progress, CancellationToken cancellationToken)
         {
-            var adGroupName = groupMapping.ActiveDirectoryName;
+            var adGroupName = groupMapping.ActiveDirectoryGroupName;
             var gogsOrgName = groupMapping.GogsOrgName;
             if (string.IsNullOrWhiteSpace(adGroupName) || string.IsNullOrWhiteSpace(gogsOrgName))
             {

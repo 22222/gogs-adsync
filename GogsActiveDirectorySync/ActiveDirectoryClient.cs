@@ -9,22 +9,15 @@ namespace GogsActiveDirectorySync
 {
     public class ActiveDirectoryClient
     {
-        private readonly string groupContainer;
-
-        public ActiveDirectoryClient(string groupContainer)
+        public IEnumerable<ActiveDirectoryUser> GetUsers(string groupName, string container = null)
         {
-            this.groupContainer = groupContainer;
-        }
-
-        public IEnumerable<ActiveDirectoryUser> GetUsers(string groupName)
-        {
-            var domain = new PrincipalContext(ContextType.Domain, Environment.UserDomainName, groupContainer);
+            var domain = new PrincipalContext(ContextType.Domain, Environment.UserDomainName, container: container);
             var groupQueryFilter = new GroupPrincipal(domain, groupName);
             var groupSearcher = new PrincipalSearcher(groupQueryFilter);
             var group = groupSearcher.FindOne() as GroupPrincipal;
             if (group == null)
             {
-                NLog.LogManager.GetCurrentClassLogger().Warn($"Active Directory group \"{groupName}\" not found in container \"{groupContainer}\"");
+                NLog.LogManager.GetCurrentClassLogger().Warn($"Active Directory group \"{groupName}\" not found in container \"{container}\"");
                 yield break;
             }
 
