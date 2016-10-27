@@ -28,11 +28,10 @@ namespace GogsActiveDirectorySync
 
             var logProgress = new LogProgress(logger);
 
-            var appConfig = new AppConfiguration();
             var appConfiguration = new AppConfiguration();
             appConfiguration.LoadConfigFile();
 
-            if (appConfiguration.GogsAccessToken == null && !appConfiguration.DisableGogsAccessTokenGeneration)
+            if (appConfiguration.GogsAccessToken == null && appConfiguration.EnableGogsAccessTokenGeneration)
             {
                 var gogsAccessTokenGenerator = new GogsAccessTokenGenerator(appConfiguration);
                 var gogsAccessTokens = await gogsAccessTokenGenerator.CreateOrGetAccessTokensAsync();
@@ -43,7 +42,7 @@ namespace GogsActiveDirectorySync
             }
 
             // Force a minimum wait interval (we probably don't want this thing running constantly)
-            var syncInterval = appConfig.SyncInterval;
+            var syncInterval = appConfiguration.SyncInterval;
             if (syncInterval.TotalMinutes < 1)
             {
                 syncInterval = TimeSpan.FromMinutes(1);
@@ -53,7 +52,7 @@ namespace GogsActiveDirectorySync
             while (!cancellationToken.IsCancellationRequested)
             {
                 // If we have a min/max time, then we'll wait for a valid time period.
-                var waitTime = TimeUtils.CalculateWaitTime(DateTime.Now.TimeOfDay, appConfig.MinimumTimeOfDay, appConfig.MaximumTimeOfDay);
+                var waitTime = TimeUtils.CalculateWaitTime(DateTime.Now.TimeOfDay, appConfiguration.MinimumTimeOfDay, appConfiguration.MaximumTimeOfDay);
                 if (waitTime.HasValue)
                 {
                     await Task.Delay(waitTime.Value, cancellationToken);
@@ -61,16 +60,18 @@ namespace GogsActiveDirectorySync
 
                 try
                 {
+                    logger.Info("Starting sync...");
                     await synchronizer.SynchronizeAsync(progress: logProgress, cancellationToken: cancellationToken);
+                    logger.Info("Sync completed successfully.");
                     await Task.Delay(syncInterval, cancellationToken: cancellationToken);
                 }
-                catch (OperationCanceledException ex)
+                catch (OperationCanceledException)
                 {
-                    logger.Debug(ex, "Canceled during a synchronization operation");
+                    logger.Info("Sync canceled.");
                 }
                 catch (Exception ex)
                 {
-                    logger.Error(ex, ex.Message);
+                    logger.Error(ex, $"Sync failed.");
                     await Task.Delay(syncInterval, cancellationToken: cancellationToken);
                 }
             }

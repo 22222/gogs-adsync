@@ -24,7 +24,7 @@ namespace GogsActiveDirectorySync
             var group = groupSearcher.FindOne() as GroupPrincipal;
             if (group == null)
             {
-                //throw new InvalidOperationException($"Group \"{groupName}\" not found in container \"{groupContainer}\"");
+                NLog.LogManager.GetCurrentClassLogger().Warn($"Active Directory group \"{groupName}\" not found in container \"{groupContainer}\"");
                 yield break;
             }
 

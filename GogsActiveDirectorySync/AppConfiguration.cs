@@ -34,6 +34,13 @@ namespace GogsActiveDirectorySync
         public string ActiveDirectoryGroupContainer { get; set; }
 
         /// <summary>
+        /// An (optional) Active Directory group that's required for all users included in the sync.
+        /// If the user isn't in this AD group, then no Gogs user will be created for them and they will 
+        /// not be placed into any Gogs organizations/teams.
+        /// </summary>
+        public string RequiredActiveDirectoryGroupName { get; set; }
+
+        /// <summary>
         /// The URI to the Gogs API.  Example: https://try.gogs.io/api/v1/
         /// </summary>
         public Uri GogsApiUri { get; set; }
@@ -61,10 +68,9 @@ namespace GogsActiveDirectorySync
         public int GogsLdapAuthenticationSourceId { get; set; }
 
         /// <summary>
-        /// By default, a Gogs access token will be created for your user if you don't already have one.
-        /// Set this to true to disable that.
+        /// Set this to true to have a Gogs access token will be created for your user if you don't already have one.
         /// </summary>
-        public bool DisableGogsAccessTokenGeneration { get; set; }
+        public bool EnableGogsAccessTokenGeneration { get; set; }
 
         /// <summary>
         /// If true, users will be created in Gogs for all users 
@@ -80,11 +86,11 @@ namespace GogsActiveDirectorySync
         public bool EnableGogsOrgCreation { get; set; }
 
         /// <summary>
-        /// Disables any team creation in Gogs.
+        /// Enables team creation in Gogs.
         /// If your version of Gogs has a bug that prevents the API from creating teams, 
-        /// then teams won't be created even if this is not disabled.
+        /// then teams won't be created even if this is enabled.
         /// </summary>
-        public bool DisableGogsTeamCreation { get; set; }
+        public bool EnableGogsTeamCreation { get; set; }
 
         /// <summary>
         /// If true, nothing will actually be created.
@@ -141,6 +147,7 @@ namespace GogsActiveDirectorySync
             }
 
             ActiveDirectoryGroupContainer = ConfigurationManager.AppSettings["ActiveDirectoryGroupContainer"];
+            RequiredActiveDirectoryGroupName = ConfigurationManager.AppSettings["RequiredActiveDirectoryGroupName"];
 
             var gogsApiUrl = ConfigurationManager.AppSettings["GogsApiUrl"];
             GogsApiUri = gogsApiUrl != null ? new Uri(gogsApiUrl) : null;
@@ -155,12 +162,12 @@ namespace GogsActiveDirectorySync
             }
             GogsLdapAuthenticationSourceId = sourceId;
 
-            bool disableAccessTokenGeneration;
-            if (!bool.TryParse(ConfigurationManager.AppSettings["DisableGogsAccessTokenGeneration"], out disableAccessTokenGeneration))
+            bool enableAccessTokenGeneration;
+            if (!bool.TryParse(ConfigurationManager.AppSettings["EnableGogsAccessTokenGeneration"], out enableAccessTokenGeneration))
             {
-                disableAccessTokenGeneration = false;
+                enableAccessTokenGeneration = false;
             }
-            DisableGogsAccessTokenGeneration = disableAccessTokenGeneration;
+            EnableGogsAccessTokenGeneration = enableAccessTokenGeneration;
 
             bool enableGogsUserCreation;
             if (!bool.TryParse(ConfigurationManager.AppSettings["EnableGogsUserCreation"], out enableGogsUserCreation))
@@ -176,12 +183,12 @@ namespace GogsActiveDirectorySync
             }
             EnableGogsOrgCreation = enableGogsOrgCreation;
 
-            bool disableGogsTeamCreation;
-            if (!bool.TryParse(ConfigurationManager.AppSettings["DisableGogsTeamCreation"], out disableGogsTeamCreation))
+            bool enableGogsTeamCreation;
+            if (!bool.TryParse(ConfigurationManager.AppSettings["EnableGogsTeamCreation"], out enableGogsTeamCreation))
             {
-                disableGogsTeamCreation = false;
+                enableGogsTeamCreation = false;
             }
-            DisableGogsTeamCreation = disableGogsTeamCreation;
+            EnableGogsTeamCreation = enableGogsTeamCreation;
 
             bool isDryRun;
             if (!bool.TryParse(ConfigurationManager.AppSettings["IsDryRun"], out isDryRun))

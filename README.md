@@ -4,7 +4,7 @@ A windows service for synchronizing Active Directory users and groups with [Gogs
 
 Install
 =======
-Download the latest release.  Then you can run `GogsActiveDirectorySync.exe` directly as a console application, or install it as a windows service:
+Download the [latest release](https://github.com/22222/gogs-adsync/releases).  Then you can run `GogsActiveDirectorySync.exe` directly as a console application, or install it as a windows service:
 
 ```
 GogsActiveDirectorySync.exe install –autostart
@@ -21,7 +21,7 @@ Some AppSettings you'll probably want to change:
 
 * `SyncIntervalHours`: How often the sync runs
 * `MinimumTimeOfDay`, `MaximumTimeOfDay`: Can be used to make sure the sync only runs at night (or any interval you want)
-* `ActiveDirectoryGroupContainer`: The base container for all of your Active Directory groups?  You might be able to leave this blank.
+* `ActiveDirectoryGroupContainer`: The base container for all of your Active Directory groups.  You can leave this out to search through all ActiveDirectory groups, probably?
 * `GogsApiUrl`: The URL to your Gogs installation's API (like `https://try.gogs.io/api/v1/`)
 * `GogsUsername`: An Gogs user with enough permissions to create users and organizations
 * `GogsPassword`: Set this if you want to use password authentication with the Gogs API

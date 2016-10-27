@@ -67,6 +67,14 @@ namespace GogsActiveDirectorySync
                     {
                         continue;
                     }
+                    if (!string.IsNullOrWhiteSpace(appConfiguration.RequiredActiveDirectoryGroupName))
+                    {
+                        var requiredAdGroupName = appConfiguration.RequiredActiveDirectoryGroupName;
+                        if (!adUser.GroupNames.Any(groupName => string.Equals(groupName, requiredAdGroupName, StringComparison.OrdinalIgnoreCase)))
+                        {
+                            continue;
+                        }
+                    }
 
                     GogsKit.UserResult gogsUser;
                     if (!gogsUserCache.TryGetValue(adUser.Username, out gogsUser))
@@ -91,10 +99,17 @@ namespace GogsActiveDirectorySync
                 foreach (var gogsUser in gogsUsers)
                 {
                     cancellationToken.ThrowIfCancellationRequested();
-                    progress?.Report($"Adding user \"{gogsUser.Username}\" to org \"{groupMapping.GogsOrgName}\" on team \"{gogsTeam.Name}\"");
+                    progress?.Report($"Adding Gogs user \"{gogsUser.Username}\" to org \"{groupMapping.GogsOrgName}\" on team \"{gogsTeam.Name}\"");
                     if (!appConfiguration.IsDryRun)
                     {
-                        await gogsClient.Admin.AddTeamMember(gogsTeam.Id, gogsUser.Username, cancellationToken: cancellationToken);
+                        try
+                        {
+                            await gogsClient.Admin.AddTeamMember(gogsTeam.Id, gogsUser.Username, cancellationToken: cancellationToken);
+                        }
+                        catch (Exception ex)
+                        {
+                            NLog.LogManager.GetCurrentClassLogger().Error(ex, $"Failed to add Gogs user \"{gogsUser.Username}\" to org \"{groupMapping.GogsOrgName}\" on team \"{gogsTeam.Name}\"");
+                        }
                     }
                 }
             }
@@ -121,12 +136,12 @@ namespace GogsActiveDirectorySync
 
             if (gogsOrganization == null && appConfiguration.EnableGogsOrgCreation)
             {
-                progress?.Report($"Creating missing org \"{gogsOrgName}\"");
+                progress?.Report($"Creating missing Gogs org \"{gogsOrgName}\"");
                 if (!appConfiguration.IsDryRun)
                 {
                     try
                     {
-                        await gogsClient.Admin.CreateOrg(appConfiguration.GogsUsername, new CreateOrgOption
+                        gogsOrganization = await gogsClient.Admin.CreateOrg(appConfiguration.GogsUsername, new CreateOrgOption
                         {
                             UserName = gogsOrgName,
                             FullName = adGroupName,
@@ -134,24 +149,21 @@ namespace GogsActiveDirectorySync
                     }
                     catch (Exception ex)
                     {
-                        throw new InvalidOperationException($"Failed to create gogs org \"{gogsOrgName}\"", ex);
+                        NLog.LogManager.GetCurrentClassLogger().Error(ex, $"Failed to create Gogs org \"{gogsOrgName}\"");
+                        gogsOrganization = null;
+                        //throw new InvalidOperationException($"Failed to create gogs org \"{gogsOrgName}\"", ex);
                     }
                 }
             }
 
-            const string defaultGogsTeamName = "Active Directory";
+            const string defaultGogsTeamName = "ActiveDirectory";
             var gogsTeamName = groupMapping.GogsTeamName ?? defaultGogsTeamName;
             var orgTeams = await gogsClient.Orgs.GetTeamsAsync(gogsOrgName, cancellationToken: cancellationToken);
 
-            // We'd prefer to create a new team if there isn't one with our name already, 
-            // but the current version of the GOGS API fails to create a team if one already exists.
-            // So if there's a non-matching team out there, then we'll have to settle for it.
-            var gogsOrgSyncTeam = orgTeams.FirstOrDefault(t => string.Equals(t.Name, gogsTeamName))
-                ?? orgTeams.FirstOrDefault(t => t.Permission == "write")
-                ?? orgTeams.FirstOrDefault();
-            if (gogsOrgSyncTeam == null && !appConfiguration.DisableGogsTeamCreation)
+            var gogsOrgSyncTeam = orgTeams.FirstOrDefault(t => string.Equals(t.Name, gogsTeamName));
+            if (gogsOrgSyncTeam == null && appConfiguration.EnableGogsTeamCreation)
             {
-                progress?.Report($"Creating missing team \"{gogsTeamName}\" for org \"{gogsOrgName}\"");
+                progress?.Report($"Creating missing Gogs team \"{gogsTeamName}\" for org \"{gogsOrgName}\"");
                 if (!appConfiguration.IsDryRun)
                 {
                     try
@@ -163,9 +175,23 @@ namespace GogsActiveDirectorySync
                             Permission = "write"
                         }, cancellationToken: cancellationToken);
                     }
+                    catch (GogsKit.Exceptions.GogsKitAlreadyExistsException ex)
+                    {
+                        // With some versions of the API (like the current version as of writing this), 
+                        // creating a second team in an organization will always fail because it thinks
+                        // every possible team already exist.  
+                        NLog.LogManager.GetCurrentClassLogger().Error(ex, $"Failed to create Gogs team \"{gogsTeamName}\", probably because your version of the Gogs API has a bug that doesn't allow teams to be created.");
+                        gogsOrgSyncTeam = null;
+
+                        // Could alternatively fall back to the best available team?
+                        //gogsOrgSyncTeam = orgTeams.FirstOrDefault(t => t.Permission == "write")
+                        //    ?? orgTeams.FirstOrDefault();
+                    }
                     catch (Exception ex)
                     {
-                        throw new InvalidOperationException($"Failed to create gogs team \"{gogsTeamName}\"", ex);
+                        NLog.LogManager.GetCurrentClassLogger().Error(ex, $"Failed to create Gogs team \"{gogsTeamName}\"");
+                        gogsOrgSyncTeam = null;
+                        //throw new InvalidOperationException($"Failed to create gogs team \"{gogsTeamName}\"", ex);
                     }
                 }
             }
@@ -186,7 +212,7 @@ namespace GogsActiveDirectorySync
 
             if (gogsUser == null && appConfiguration.EnableGogsUserCreation)
             {
-                progress?.Report($"Creating missing user \"{adUser.Username}\" (\"{adUser.ActiveDirectoryName}\")");
+                progress?.Report($"Creating missing Gogs user \"{adUser.Username}\" (\"{adUser.ActiveDirectoryName}\")");
                 if (!appConfiguration.IsDryRun)
                 {
                     try
@@ -202,7 +228,9 @@ namespace GogsActiveDirectorySync
                     }
                     catch (Exception ex)
                     {
-                        throw new InvalidOperationException($"Failed to create gogs user \"{adUser.Username}\"", ex);
+                        NLog.LogManager.GetCurrentClassLogger().Error(ex, $"Failed to create Gogs user \"{adUser.Username}\"");
+                        gogsUser = null;
+                        //throw new InvalidOperationException($"Failed to create gogs user \"{adUser.Username}\"", ex);
                     }
                 }
             }
