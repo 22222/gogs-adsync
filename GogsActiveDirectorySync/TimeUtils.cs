@@ -12,26 +12,26 @@ namespace GogsActiveDirectorySync
         {
             if (!minimumTimeOfDay.HasValue && !maximumTimeOfDay.HasValue) return default(TimeSpan?);
 
-            if (minimumTimeOfDay > maximumTimeOfDay)
+            TimeSpan? waitTimespan = null;
+            bool isInverted = minimumTimeOfDay.HasValue && maximumTimeOfDay.HasValue && minimumTimeOfDay.Value > maximumTimeOfDay.Value;
+            if (isInverted)
             {
-                var temp = minimumTimeOfDay;
-                maximumTimeOfDay = minimumTimeOfDay;
-                minimumTimeOfDay = temp;
-            }
-
-            TimeSpan? waitTimespan;
-            if (minimumTimeOfDay.HasValue && currentTimeOfDay < minimumTimeOfDay)
-            {
-                waitTimespan = minimumTimeOfDay.Value - currentTimeOfDay;
-            }
-            else if (maximumTimeOfDay.HasValue && currentTimeOfDay > maximumTimeOfDay)
-            {
-                var minimTimeOfDayOrDefault = minimumTimeOfDay ?? TimeSpan.FromHours(0);
-                waitTimespan = TimeSpan.FromHours(24) + minimTimeOfDayOrDefault - currentTimeOfDay;
+                if (currentTimeOfDay < minimumTimeOfDay.Value && currentTimeOfDay > maximumTimeOfDay.Value)
+                {
+                    waitTimespan = minimumTimeOfDay.Value - currentTimeOfDay;
+                }
             }
             else
             {
-                waitTimespan = null;
+                if (minimumTimeOfDay.HasValue && currentTimeOfDay < minimumTimeOfDay.Value)
+                {
+                    waitTimespan = minimumTimeOfDay.Value - currentTimeOfDay;
+                }
+                else if (maximumTimeOfDay.HasValue && currentTimeOfDay > maximumTimeOfDay.Value)
+                {
+                    var minimTimeOfDayOrDefault = minimumTimeOfDay ?? TimeSpan.FromHours(0);
+                    waitTimespan = TimeSpan.FromHours(24) + minimTimeOfDayOrDefault - currentTimeOfDay;
+                }
             }
             return waitTimespan;
         }

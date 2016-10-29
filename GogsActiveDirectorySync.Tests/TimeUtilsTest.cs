@@ -21,6 +21,10 @@ namespace GogsActiveDirectorySync
         [TestCase(17, 0, null, null)]
         [TestCase(17, null, 20, null)]
         [TestCase(17, null, null, null)]
+        [TestCase(7, 18, 8, null)]
+        [TestCase(20, 18, 8, null)]
+        [TestCase(17, 18, 8, 1)]
+        [TestCase(9, 18, 8, 9)]
         public void CalculateWaitTime(int currentHour, int? minimumHour, int? maximumHour, int? expectedHour)
         {
             var currentTime = TimeSpan.FromHours(currentHour);
