@@ -242,6 +242,7 @@ namespace GogsActiveDirectorySync
                         gogsUser = await gogsClient.Admin.CreateUserAsync(new CreateUserOption
                         {
                             SourceId = appConfiguration.GogsLdapAuthenticationSourceId,
+                            LoginName = adUser.Username,
                             Username = adUser.Username,
                             FullName = adUser.DisplayName,
                             Email = adUser.EmailAddress,
